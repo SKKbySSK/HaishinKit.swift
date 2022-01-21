@@ -1,6 +1,7 @@
 import AVFoundation
 import CoreFoundation
 import VideoToolbox
+import UIKit
 
 #if os(iOS)
 import UIKit
@@ -24,6 +25,7 @@ public final class VideoCodec {
         #endif
         case maxKeyFrameIntervalDuration
         case scalingMode
+        case isBackground
 
         public var keyPath: AnyKeyPath {
             switch self {
@@ -45,6 +47,8 @@ public final class VideoCodec {
                 return \VideoCodec.scalingMode
             case .profileLevel:
                 return \VideoCodec.profileLevel
+            case .isBackground:
+                return \VideoCodec.isBackground
             }
         }
     }
@@ -126,6 +130,23 @@ public final class VideoCodec {
             invalidateSession = true
         }
     }
+    var isBackground: Bool = false {
+        didSet {
+            guard isBackground != oldValue else {
+                return
+            }
+            invalidateSession = true
+            
+            if isBackground {
+                logger.debug("background mode enabled")
+                if lastImageSampleBuffer != nil {
+                    logger.debug("last sampled image will be used while background")
+                }
+            } else {
+                logger.debug("background mode disabled")
+            }
+        }
+    }
     var locked: UInt32 = 0
     var lockQueue = DispatchQueue(label: "com.haishinkit.HaishinKit.H264Encoder.lock")
     var expectedFPS: Float64 = AVMixer.defaultFPS {
@@ -155,6 +176,7 @@ public final class VideoCodec {
     }
     private var invalidateSession = true
     private var lastImageBuffer: CVImageBuffer?
+    private var lastImageSampleBuffer: CMSampleBuffer?
 
     // @see: https://developer.apple.com/library/mac/releasenotes/General/APIDiffsMacOSX10_8/VideoToolbox.html
     private var properties: [NSString: NSObject] {
@@ -200,6 +222,7 @@ public final class VideoCodec {
         let codec: VideoCodec = Unmanaged<VideoCodec>.fromOpaque(refcon).takeUnretainedValue()
         codec.formatDescription = CMSampleBufferGetFormatDescription(sampleBuffer)
         codec.delegate?.videoCodec(codec, didOutput: sampleBuffer)
+        codec.lastImageSampleBuffer = sampleBuffer
     }
 
     private var _session: VTCompressionSession?
@@ -242,7 +265,13 @@ public final class VideoCodec {
     }
 
     func encodeImageBuffer(_ imageBuffer: CVImageBuffer, presentationTimeStamp: CMTime, duration: CMTime) {
-        guard isRunning.value && locked == 0 else {
+        guard isRunning.value, locked == 0 else {
+            return
+        }
+        if isBackground {
+            if let lastSampleBuffer = self.lastImageSampleBuffer {
+                delegate?.videoCodec(self, didOutput: lastSampleBuffer)
+            }
             return
         }
         if invalidateSession {
