@@ -229,6 +229,7 @@ public final class VideoCodec {
     private var session: VTCompressionSession? {
         get {
             if _session == nil {
+                logger.debug("creating VTCompressionSession")
                 guard VTCompressionSessionCreate(
                     allocator: kCFAllocatorDefault,
                     width: width,
@@ -244,6 +245,7 @@ public final class VideoCodec {
                     logger.warn("create a VTCompressionSessionCreate")
                     return nil
                 }
+                logger.debug("created VTCompressionSession")
                 invalidateSession = false
                 status = session.setProperties(properties)
                 status = session.prepareToEncodeFrame()
@@ -281,6 +283,7 @@ public final class VideoCodec {
             return
         }
         var flags: VTEncodeInfoFlags = []
+        logger.trace("encoding CVImageBuffer frame")
         VTCompressionSessionEncodeFrame(
             session,
             imageBuffer: muted ? lastImageBuffer ?? imageBuffer : imageBuffer,
