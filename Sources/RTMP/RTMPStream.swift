@@ -623,7 +623,6 @@ extension RTMPStream: RTMPMuxerDelegate {
             return
         }
         let type: FLVTagType = .video
-        OSAtomicOr32Barrier(1, &mixer.videoIO.encoder.locked)
         let length: Int = rtmpConnection.socket.doOutput(chunk: RTMPChunk(
             type: videoWasSent ? .one : .zero,
             streamId: type.streamId,
