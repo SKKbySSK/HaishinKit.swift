@@ -1,4 +1,5 @@
 import AVFoundation
+import Logboard
 
 #if canImport(SwiftPMSupport)
 import SwiftPMSupport
@@ -92,6 +93,8 @@ final class AVAudioIOUnit: NSObject, AVIOUnit {
         input = try AVCaptureDeviceInput(device: audio)
         #if os(iOS)
         mixer.session.automaticallyConfiguresApplicationAudioSession = automaticallyConfiguresApplicationAudioSession
+        mixer.session.usesApplicationAudioSession = true
+        logger.debug("usesApplicationAudioSession: true")
         #endif
         mixer.session.addOutput(output)
         output.setSampleBufferDelegate(self, queue: lockQueue)
